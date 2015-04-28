@@ -20,9 +20,7 @@ CONSTANT clk_ms,07
 ; declaration of outputs  
 CONSTANT led,02
 
-mainlp:	;CALL cursor_down
-		;CALL cursor_left
-		CALL check_input
+mainlp:	CALL check_input
 		LOAD uart,"X"
 		CALL UART_TX
 		CALL clear_screen
@@ -183,11 +181,11 @@ cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
 				RETURN 
 				
 cursor_to_num:	CALL start_esc
-				LOAD uart, cursor_V		;select # of lines to move
+				LOAD uart, cursor_H		;select # of lines to move
 				CALL UART_TX
 				LOAD uart, ";"
 				CALL UART_TX
-				LOAD uart, cursor_H		;select # of spaces to move
+				LOAD uart, cursor_V		;select # of spaces to move
 				CALL UART_TX
 				LOAD uart, "f"
 				CALL UART_TX
@@ -239,27 +237,39 @@ cursor_get_pos:	CALL start_esc			;reports current cursor line & column
 				CALL UART_TX
 				LOAD uart, "n"
 				CALL UART_TX
-				LOAD cursor_H, uart
+				LOAD cursor_V, uart
 				CALL UART_RX
-				LOAD cursor_V, uart		;retrieve position row
+				LOAD cursor_H, uart		;retrieve position row
 				CALL UART_RX
 				RETURN 
 				
 ;------- CHECK INPUT ------
 check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
                     COMPARE     direction, 7A               ;'z'
-                    CALL        Z, cursor_up
-					CALL		Z, cursor_left
+					CALL		move_up
                     COMPARE     direction, 64               ;'d'
-					CALL		Z, cursor_left
-                    CALL        Z, cursor_right
+                    CALL		move_right
                     COMPARE     direction, 73               ;'s'
-                    CALL        Z, cursor_down
-					CALL		Z, cursor_left
+                    CALL		move_down
                     COMPARE     direction, 71               ;'q'
-                    CALL        Z, cursor_left
-					CALL 		Z, cursor_left
-					
+                    CALL		move_left
+
+move_up:			;CALL		cursor_get_pos
+					SUB			cursor_V, 01
+                    CALL        cursor_to_num
+					RETURN
+move_down:			;CALL		cursor_get_pos
+					ADD			cursor_H, 01
+                    CALL        cursor_to_num
+					RETURN
+move_left:			;CALL		cursor_get_pos
+					SUB			cursor_V, 01
+                    CALL        cursor_to_num
+					RETURN
+move_right:			;CALL		cursor_get_pos
+					ADD			cursor_H, 01
+                    CALL        cursor_to_num
+					RETURN
 					
 ;------------- 				DELAY						-------------;
 delms:              input     s0, clk_ms
