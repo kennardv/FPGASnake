@@ -246,15 +246,19 @@ cursor_get_pos:	CALL start_esc			;reports current cursor line & column
 				RETURN 
 				
 ;------- CHECK INPUT ------
-check_input:        INPUT     direction, rx                 ; READ THE UART EVEN IF EMPTY
+check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
                     COMPARE     direction, 7A               ;'z'
                     CALL        Z, cursor_up
+					CALL		Z, cursor_left
                     COMPARE     direction, 64               ;'d'
+					CALL		Z, cursor_left
                     CALL        Z, cursor_right
                     COMPARE     direction, 73               ;'s'
                     CALL        Z, cursor_down
+					CALL		Z, cursor_left
                     COMPARE     direction, 71               ;'q'
                     CALL        Z, cursor_left
+					CALL 		Z, cursor_left
 					
 					
 ;------------- 				DELAY						-------------;
