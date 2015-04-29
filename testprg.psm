@@ -1,131 +1,125 @@
+;INCLUDE "ascii.psm"
+;INCLUDE "uart.psm"					
+;INCLUDE "ansi.psm"	
+
 ;declaration of NAMEREG
-NAMEREG s4, uart
-NAMEREG s5, cursor_H
-NAMEREG s6, cursor_V
+NAMEREG s4,uart
+NAMEREG s5,cursor_X		;Cursor positioning: !!! (Y,X) !!!
+NAMEREG s6,cursor_Y
 NAMEREG s7, direction
 
-NAMEREG sA, screen
-NAMEREG sB, color
-NAMEREG sC, dark_light
-
+NAMEREG sA,color
+NAMEREG sB,dark_light
+NAMEREG sC,screen
 
 ; declaration of inputs  
-CONSTANT switch, 02
-CONSTANT uart_sp, 00     					
-CONSTANT clk_ms, 07
+CONSTANT switch,02
+CONSTANT uart_sp,00     					
+CONSTANT clk_ms,07
 
 ; declaration of outputs  
-CONSTANT led, 02
+CONSTANT led,02
 
-
-;-------------------- Init --------------------;
-; Set cursor to start pos
-cold_start:		LOAD cursor_H, 9'd
-				CALL UART_TX
-				LOAD cursor_V, 9'd
-				CALL UART_TX
-				CALL cursor_to_num
-
-;-------------------- End init --------------------;
-				
-;-------------------- Main loop --------------------;
-
+;--------------------------------------------;
+;--------------------------------------------; 
+cold_start:	LOAD cursor_X, "9"
+			LOAD cursor_Y, "5"
+			CALL cursor_to_num
+			
 mainlp:	CALL check_input
-		LOAD uart,"X"
+		LOAD uart, "O"
 		CALL UART_TX
 		CALL clear_screen
 		CALL del250ms
-
-;-------------------- End main --------------------;
-
-
+;--------------------------------------------;
+;--------------------------------------------;
 
 ;-------------------- CHECK INPUT --------------------;
 
 check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
                     COMPARE     direction, 7A               ;'z'
-					CALL		move_up
+					CALL		Z, move_up
                     COMPARE     direction, 64               ;'d'
-                    CALL		move_right
+                    CALL		Z, move_right
                     COMPARE     direction, 73               ;'s'
-                    CALL		move_down
+                    CALL		Z, move_down
                     COMPARE     direction, 71               ;'q'
-                    CALL		move_left
+                    CALL		Z, move_left
+					RETURN
 
 move_up:			;CALL		cursor_get_pos
-					SUB			cursor_V, 01
+					SUB			cursor_Y, 1'd
+					OUTPUT		cursor_Y, rx
                     CALL        cursor_to_num
 					RETURN
 move_down:			;CALL		cursor_get_pos
-					ADD			cursor_H, 01
+					ADD			cursor_Y, 1'd
+					OUTPUT		cursor_Y, rx
                     CALL        cursor_to_num
 					RETURN
 move_left:			;CALL		cursor_get_pos
-					SUB			cursor_V, 01
+					SUB			cursor_X, 1'd
+					OUTPUT		cursor_X, rx
                     CALL        cursor_to_num
 					RETURN
 move_right:			;CALL		cursor_get_pos
-					ADD			cursor_H, 01
+					ADD			cursor_X, 1'd
+					OUTPUT		cursor_X, rx
                     CALL        cursor_to_num
 					RETURN
+;--------------------------------------------------;
 
-;-------------------- End Check input --------------------;
-
-;-----------------------------------------------------------------------------------------------;
-;-----------------------------------------------------------------------------------------------;
-;-----------------------------------------------------------------------------------------------;
 
 ;-------------------- ANSI CURSOR CONTROL --------------------;
-
 cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
-				;LOAD uart, cursor_V
+				;LOAD uart, cursor_X
 				;CALL UART_TX
 				;LOAD uart, ";"
 				;CALL UART_TX
-				;LOAD uart, cursor_H
+				;LOAD uart, cursor_Y
 				;CALL UART_TX
 				LOAD uart, "H"
 				CALL UART_TX
 				RETURN 
 				
 cursor_to_num:	CALL start_esc
-				LOAD uart, cursor_H		;select # of lines to move
+				LOAD uart, cursor_Y		;Row parameter = vertical
 				CALL UART_TX
 				LOAD uart, ";"
 				CALL UART_TX
-				LOAD uart, cursor_V		;select # of spaces to move
+				LOAD uart, cursor_X		;Col parameter = horizontal
 				CALL UART_TX
-				LOAD uart, "f"
+				LOAD uart, "H"
 				CALL UART_TX
 				RETURN
 
 cursor_num:		CALL start_esc
-				LOAD uart, cursor_H		;select # of lines/spaces to move - store cursor_H in uart
+				LOAD uart, cursor_X		;select # of lines/spaces to move - store cursor_X in uart
 				CALL UART_TX
-				LOAD uart, cursor_V		;select for up down left or right
+				LOAD uart, cursor_Y		;select for up down left or right
 				CALL UART_TX
 				RETURN
 
 cursor_up:		CALL start_esc
-				;LOAD uart, cursor_V
+				;LOAD uart, cursor_Y
 				;CALL UART_TX
 				LOAD uart, "A"
 				CALL UART_TX
 				RETURN
 cursor_down:	CALL start_esc
-				;LOAD uart, cursor_V
+				;LOAD uart, cursor_Y
 				;CALL UART_TX
 				LOAD uart, "B"
 				CALL UART_TX
 				RETURN
 cursor_right:	CALL start_esc
-				;LOAD uart, cursor_H
+				;LOAD uart, cursor_X
 				;CALL UART_TX
 				LOAD uart, "C"
 				CALL UART_TX
 				RETURN
 cursor_left:	CALL start_esc
-				;LOAD uart, cursor_H
+				;LOAD uart, cursor_X
 				;CALL UART_TX
 				LOAD uart, "D"
 				CALL UART_TX
@@ -145,27 +139,24 @@ cursor_get_pos:	CALL start_esc			;reports current cursor line & column
 				CALL UART_TX
 				LOAD uart, "n"
 				CALL UART_TX
-				LOAD cursor_V, uart
+				LOAD cursor_Y, uart
 				CALL UART_RX
-				LOAD cursor_H, uart		;retrieve position row
+				LOAD cursor_X, uart		;retrieve position row
 				CALL UART_RX
-				RETURN
-
-;-------------------- End ANSI Cursor control --------------------;
+				RETURN 
 
 
-;-------------------- ANSI Escape Sequences/codes --------------------;
+;------------- 		ANSI Escape Sequences/codes			-------------;
 
 start_esc:		LOAD uart, char_ESC 
 				CALL UART_TX
 				LOAD uart, char_LHOOK
 				CALL UART_TX
 				RETURN
+;----------------------------------------;
 
-;-------------------- End ANSI Escape code --------------------;
-
-
-;-------------------- ANSI screen colors --------------------;
+				
+;-------------------- Ansi for screen colors	------------------;
 				
 color_screen:	CALL start_esc
 				LOAD uart,dark_light
@@ -206,10 +197,9 @@ color_yellow:   LOAD color,"3"
 				RETURN
 color_white:    LOAD color,"7" 
 				RETURN
+;--------------------------------------------------;
 
-;-------------------- End ANSI Screen color --------------------;
-
-;-------------------- ANSI screen size --------------------;
+;-------------------- Ansi for screen size	----------------------;
 				
 create_screen:	CALL start_esc			;put screen in indicated mode
 				LOAD uart, "="
@@ -253,13 +243,10 @@ clear_all: 		CALL start_esc			;clear to end of line
 				LOAD uart, "K"
 				CALL UART_TX
 				CALL del250ms              
-				RETURN 
-
-;-------------------- End ANSI Screen size --------------------;	
-
-
-;-------------------- DELAY --------------------;
-
+				RETURN 				
+;--------------------------------------------------;
+					
+;------------- DELAY -------------;
 delms:              input     s0, clk_ms
    delmslp:         input     s1, clk_ms
                     compare   s0, s1
@@ -270,12 +257,11 @@ del250ms:           load      s2, 05
     del250mslp:     call      delms
                     add       s2, 01
                     jump      nz, del250mslp
-                    return
+                    return    
+;----------------------------------------;
 
-;-------------------- End Delay --------------------;
-
-
-;-------------------- UART -------------------;
+;--------------------------------------------;
+;---------------------- UART ----------------------;
 
 ;reference
 ;http://bluesock.org/~willg/dev/ansi.html	
@@ -322,11 +308,12 @@ READ_RX: 		OUTPUT uart, rx				;read character from buffer
 UART_RESET: 	OUTPUTK uart_reset, uart_rp
                 OUTPUTK uart_operate, uart_rp
                 RETURN
+;--------------------------------------------;
+;--------------------------------------------;
 
-;-------------------- End UART --------------------;
+;----------------------------------------;
+;--------------------	ASCII --------------------;
 
-
-;-------------------- ASCII --------------------;
 ;--- lijncodes
 CONSTANT char_NULL,00			;NULL
 CONSTANT char_BS,08  			;Back Space
@@ -400,4 +387,3 @@ CONSTANT char_w,77
 CONSTANT char_x,78
 CONSTANT char_y,79
 CONSTANT char_z,7A
-
