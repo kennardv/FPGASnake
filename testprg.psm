@@ -22,14 +22,14 @@ CONSTANT led,02
 
 ;--------------------------------------------;
 ;--------------------------------------------; 
-cold_start:	LOAD cursor_X, "9"
-			LOAD cursor_Y, "5"
+cold_start:	LOAD cursor_X, 39
+			LOAD cursor_Y, 35
 			CALL cursor_to_num
 			
-mainlp:	CALL check_input
+mainlp:	CALL clear_screen
+		CALL check_input
 		LOAD uart, "O"
 		CALL UART_TX
-		CALL clear_screen
 		CALL del250ms
 ;--------------------------------------------;
 ;--------------------------------------------;
@@ -38,33 +38,29 @@ mainlp:	CALL check_input
 
 check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
                     COMPARE     direction, 7A               ;'z'
-					CALL		Z, move_up
+					CALL		move_up
                     COMPARE     direction, 64               ;'d'
-                    CALL		Z, move_right
+                    CALL		move_right
                     COMPARE     direction, 73               ;'s'
-                    CALL		Z, move_down
+                    CALL		move_down
                     COMPARE     direction, 71               ;'q'
-                    CALL		Z, move_left
+                    CALL		move_left
 					RETURN
 
 move_up:			;CALL		cursor_get_pos
 					SUB			cursor_Y, 1'd
-					OUTPUT		cursor_Y, rx
                     CALL        cursor_to_num
 					RETURN
 move_down:			;CALL		cursor_get_pos
 					ADD			cursor_Y, 1'd
-					OUTPUT		cursor_Y, rx
                     CALL        cursor_to_num
 					RETURN
 move_left:			;CALL		cursor_get_pos
 					SUB			cursor_X, 1'd
-					OUTPUT		cursor_X, rx
                     CALL        cursor_to_num
 					RETURN
 move_right:			;CALL		cursor_get_pos
 					ADD			cursor_X, 1'd
-					OUTPUT		cursor_X, rx
                     CALL        cursor_to_num
 					RETURN
 ;--------------------------------------------------;
@@ -235,8 +231,8 @@ clear_screen: 	CALL start_esc			;clear screen and home cursor
 				LOAD uart, "2"
 				CALL UART_TX
 				LOAD uart, "J"
-				;CALL UART_TX
-				CALL del250ms              
+				CALL UART_TX
+				;CALL del250ms              
 				RETURN 	
 				
 clear_all: 		CALL start_esc			;clear to end of line
