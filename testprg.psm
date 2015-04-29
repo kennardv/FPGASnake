@@ -22,8 +22,8 @@ CONSTANT led,02
 
 ;--------------------------------------------;
 ;--------------------------------------------; 
-cold_start:	LOAD cursor_X, 39
-			LOAD cursor_Y, 35
+cold_start:	LOAD cursor_X, 31
+			LOAD cursor_Y, 31
 			CALL cursor_to_num
 			
 mainlp:	CALL clear_screen
@@ -37,30 +37,39 @@ mainlp:	CALL clear_screen
 ;-------------------- CHECK INPUT --------------------;
 
 check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
+					;OUTPUT 		direction, tx
                     COMPARE     direction, 7A               ;'z'
-					CALL		move_up
+					;OUTPUT 		direction, tx
+					CALL		Z, move_up
                     COMPARE     direction, 64               ;'d'
-                    CALL		move_right
+					;OUTPUT 		direction, tx
+                    CALL		Z, move_right
                     COMPARE     direction, 73               ;'s'
-                    CALL		move_down
+					;OUTPUT 		direction, tx
+                    CALL		Z, move_down
                     COMPARE     direction, 71               ;'q'
-                    CALL		move_left
+					;OUTPUT 		direction, tx
+                    CALL		Z, move_left
 					RETURN
 
 move_up:			;CALL		cursor_get_pos
 					SUB			cursor_Y, 1'd
+					OUTPUT		cursor_Y, tx
                     CALL        cursor_to_num
 					RETURN
 move_down:			;CALL		cursor_get_pos
 					ADD			cursor_Y, 1'd
+					;OUTPUT		cursor_Y, tx
                     CALL        cursor_to_num
 					RETURN
 move_left:			;CALL		cursor_get_pos
 					SUB			cursor_X, 1'd
+					;OUTPUT		cursor_X, tx
                     CALL        cursor_to_num
 					RETURN
 move_right:			;CALL		cursor_get_pos
 					ADD			cursor_X, 1'd
+					;OUTPUT		cursor_X, tx
                     CALL        cursor_to_num
 					RETURN
 ;--------------------------------------------------;
@@ -85,7 +94,7 @@ cursor_to_num:	CALL start_esc
 				CALL UART_TX
 				LOAD uart, cursor_X		;Col parameter = horizontal
 				CALL UART_TX
-				LOAD uart, "H"
+				LOAD uart, "f"
 				CALL UART_TX
 				RETURN
 
