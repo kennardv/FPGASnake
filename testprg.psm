@@ -1,7 +1,4 @@
-;INCLUDE "ascii.psm"
-;INCLUDE "uart.psm"					
-;INCLUDE "ansi.psm"	
-
+;Test acsii shit Kevin 2/05/2015
 ;declaration of NAMEREG
 NAMEREG s4,uart
 NAMEREG s5,cursor_X		;Cursor positioning: !!! (Y,X) !!!
@@ -24,6 +21,7 @@ CONSTANT led,02
 ;--------------------------------------------; 
 cold_start:	LOAD cursor_X, 31
 			LOAD cursor_Y, 31
+            LOAD direction , 64
 			CALL cursor_to_num
 			
 mainlp:	CALL clear_screen
@@ -31,6 +29,7 @@ mainlp:	CALL clear_screen
 		LOAD uart, "O"
 		CALL UART_TX
 		CALL del250ms
+        jump      mainlp
 ;--------------------------------------------;
 ;--------------------------------------------;
 
@@ -50,7 +49,8 @@ check_input:        INPUT     	direction, rx               ; READ THE UART EVEN 
                     COMPARE     direction, 71               ;'q'
 					;OUTPUT 		direction, tx
                     CALL		Z, move_left
-					RETURN
+                    RETURN
+                    
 
 move_up:			;CALL		cursor_get_pos
 					SUB			cursor_Y, 1'd
@@ -241,7 +241,7 @@ clear_screen: 	CALL start_esc			;clear screen and home cursor
 				CALL UART_TX
 				LOAD uart, "J"
 				CALL UART_TX
-				;CALL del250ms              
+				CALL del250ms              
 				RETURN 	
 				
 clear_all: 		CALL start_esc			;clear to end of line
