@@ -19,23 +19,25 @@ CONSTANT led,02
 
 ;--------------------------------------------;
 ;--------------------------------------------; 
-cold_start:	LOAD cursor_X, 31
-			LOAD cursor_Y, 31
-            LOAD direction , 64
+cold_start:	LOAD cursor_X, "0"
+			LOAD cursor_Y, "0"
+             ADD	s1, 30              ;+30 voor ascii
+             ADD	s2, 30              ;+30 voor ascii
+            LOAD direction , 73
 			CALL cursor_to_num
 			
 mainlp:	CALL clear_screen
 		CALL check_input
 		LOAD uart, "O"
 		CALL UART_TX
-		CALL del250ms
+		;CALL del250ms
         jump      mainlp
 ;--------------------------------------------;
 ;--------------------------------------------;
 
 ;-------------------- CHECK INPUT --------------------;
 
-check_input:        INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
+check_input:        ;INPUT     	direction, rx               ; READ THE UART EVEN IF EMPTY
 					;OUTPUT 		direction, tx
                     COMPARE     direction, 7A               ;'z'
 					;OUTPUT 		direction, tx
@@ -51,7 +53,6 @@ check_input:        INPUT     	direction, rx               ; READ THE UART EVEN 
                     CALL		Z, move_left
                     RETURN
                     
-
 move_up:			;CALL		cursor_get_pos
 					SUB			cursor_Y, 1'd
 					OUTPUT		cursor_Y, tx
@@ -74,6 +75,20 @@ move_right:			;CALL		cursor_get_pos
 					RETURN
 ;--------------------------------------------------;
 
+                    ; Routine to convert binary value in the range 00 to 63 hex provided in register
+                    ; 's0' into the binary coded decimal (BCD) equivalent in the range 0 to 99 in
+                    ; registers 's1' and 's0'.
+                    ;
+                    ;   Example                        s0 = 24 hex   -->    s1 = 3
+                    ;   24 hex = 36 decimal                                 s0 = 6
+                    ;
+                    ;
+byte_to_decimal: 	LOAD s2, 00                     ;clear 'tens'
+     b_to_d_loop:   COMPARE s1, 10'd                ;if 'units' is less than 10
+                    RETURN C                        ;  then conversion complete
+                    ADD s2, 1'd                     ;otherwise increment number of 'tens'
+                    SUB s1, 10'd                    ; and subtract 10 from 'units'
+                    JUMP b_to_d_loop
 
 ;-------------------- ANSI CURSOR CONTROL --------------------;
 cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
@@ -87,12 +102,20 @@ cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
 				CALL UART_TX
 				RETURN 
 				
-cursor_to_num:	CALL start_esc
-				LOAD uart, cursor_Y		;Row parameter = vertical
+cursor_to_num:	LOAD s1 ,cursor_Y
+                CALL byte_to_decimal        ;miss niet juiste plaats
+                CALL start_esc
+                LOAD uart, s2		;zet tientallen op uart
 				CALL UART_TX
+                LOAD uart, s1       ;zet eenheden op uart
+                CALL UART_TX
 				LOAD uart, ";"
 				CALL UART_TX
-				LOAD uart, cursor_X		;Col parameter = horizontal
+				LOAD s1, cursor_X		;Col parameter = horizontal
+                CALL byte_to_decimal  
+                LOAD uart, s2		;zet tientallen op uart
+				CALL UART_TX
+                LOAD uart, s1       ;zet eenheden op uart
 				CALL UART_TX
 				LOAD uart, "f"
 				CALL UART_TX
@@ -174,7 +197,7 @@ color_screen:	CALL start_esc
 				CALL UART_TX
 				LOAD uart,"m"
 				CALL UART_TX
-				CALL del250ms              
+				;CALL del250ms              
 				RETURN 
 
 color_dark:		LOAD dark_light,"0"
@@ -216,7 +239,7 @@ create_screen:	CALL start_esc			;put screen in indicated mode
 				LOAD uart,"0"
 				CALL UART_TX
 				LOAD uart,"h"
-				CALL del250ms              
+				;CALL del250ms              
 				RETURN 		
 				
 screen_mode_0:	LOAD screen,"0"			;Mode:40 x 25 black & white
@@ -241,13 +264,13 @@ clear_screen: 	CALL start_esc			;clear screen and home cursor
 				CALL UART_TX
 				LOAD uart, "J"
 				CALL UART_TX
-				CALL del250ms              
+				;CALL del250ms              
 				RETURN 	
 				
 clear_all: 		CALL start_esc			;clear to end of line
 				LOAD uart, "K"
 				CALL UART_TX
-				CALL del250ms              
+				;CALL del250ms              
 				RETURN 				
 ;--------------------------------------------------;
 					
