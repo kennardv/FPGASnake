@@ -1,15 +1,12 @@
-;INCLUDE "ascii.psm"
-;INCLUDE "uart.psm"					
-;INCLUDE "ansi.psm"	
 ;declaration of NAMEREG
 NAMEREG s5,uart
 NAMEREG sA,color
 NAMEREG sB,dark_light
 NAMEREG sC,cursor
-NAMEREG s9,eH
-NAMEREG s8,tH
-NAMEREG s3,eV
-NAMEREG s4,tV
+NAMEREG s9,cX
+NAMEREG s8,cY
+NAMEREG s3,eenh
+NAMEREG s4,tient
 NAMEREG sF,screen
 NAMEREG sD,direction
 ; declaration of inputs  
@@ -19,19 +16,26 @@ CONSTANT clk_ms,07
 ; declaration of outputs  
 CONSTANT led,02
 
-init: 		LOAD eH, "5"
-			LOAD tH, "0"
-			LOAD eV, "5"
-			LOAD tV, "0"
+init: 		call clear_screen
+			LOAD cX, 5'd
+			LOAD cY, 5'd
+			call top_side
+			call right_side
+			call bottom_side
+			call left_side
+			LOAD cX, 10'd
+			LOAD cY, 10'd
 			call mainlp
 			
 mainlp:		call cursor_num
 			call check_input
+			call check_collision
 			call color_light
 			call color_green
 			load uart,3C
 			call UART_TX
-			call clear_screen
+			call del250ms
+			;call clear_screen
 			jump mainlp
 ;reference
 ;http://bluesock.org/~willg/dev/ansi.html	
@@ -163,7 +167,9 @@ clear_all: 		CALL start_esc			;clear to end of line
 				LOAD uart, "K"
 				CALL UART_TX
 				CALL del250ms              
-				RETURN 				
+				RETURN 	
+
+clear_pos :						
 				
 ; Ansi for cursor	--------------------------;
 cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
@@ -172,28 +178,25 @@ cursor_home: 	CALL start_esc			;moves curser back home (position 0,0)
 				CALL del250ms 
 				RETURN 
 				
-cursor_to_num:	CALL start_esc
-				LOAD uart, "5"		;select # of lines to move
-				CALL UART_TX
-				LOAD uart, ";"
-				CALL UART_TX
-				LOAD uart, "5"		;select # of spaces to move
-				CALL UART_TX
-				LOAD uart, "H"
-				CALL UART_TX
-				call del250ms
-				RETURN
 cursor_num:		CALL start_esc
-				LOAD uart, tV		;select # of lines to move
-				CALL UART_TX
-				LOAD uart, eV		;select # of lines to move
-				CALL UART_TX
+				load eenh,cY
+				call byte_to_decimal
+				add  tient, 48'd			   ; ASCII CODE "0" =30HEX
+				add  eenh, 48'd
+				LOAD uart, tient               ; SEND TENTHS OF SEC TO THE UART
+				call UART_TX
+				load uart, eenh
+				call UART_TX
 				LOAD uart, ";"
 				CALL UART_TX
-				LOAD uart, tH		;select # of lines to move
-				CALL UART_TX
-				LOAD uart, eH		;select # of spaces to move
-				CALL UART_TX
+				load eenh,cX
+				call byte_to_decimal
+				add  tient, 48'd			   ; ASCII CODE "0" =30HEX
+				add  eenh, 48'd
+				load uart, tient               ; SEND TENTHS OF SEC TO THE UART
+				call UART_TX
+				load uart, eenh
+				call UART_TX
 				LOAD uart, "H"
 				CALL UART_TX
 				call del250ms
@@ -209,49 +212,34 @@ check_input:    INPUT     	direction, rx               ; READ THE UART EVEN IF E
                 COMPARE     direction, 71               ;'q'
                 CALL        Z, cursor_left				
 				RETURN
-
-add_tV:			LOAD eV, "0"
-				ADD tV, 1'd
-				return
-
-add_tH:			LOAD eH, "0"
-				ADD tH, 1'd
-				return
+			return
 				
-sub_tV:			LOAD eV, "9"
-				SUB tV, 1'd
-				return
-
-sub_tH:			LOAD eH, "9"
-				SUB tH, 1'd
-				return
-				
-cursor_up:		SUB eV, 1'd
-				COMPARE	eV, "0"
-				call z,sub_tV
+cursor_up:		SUB cY, 1'd
 				CALL del250ms
 				RETURN
 				
-cursor_down:	ADD eV, 1'd
-				COMPARE eV, char_DPOINT
-				call z, add_tV
+cursor_down:	ADD cY, 1'd
 				CALL del250ms
 				RETURN
+								
 				
-
-				
-				
-cursor_right:	ADD eH, 1'd
-				COMPARE	eH,char_DPOINT
-				call z,add_tH
-				CALL del250ms
-				RETURN
-				
-cursor_left:	SUB eH, 1'd
-				COMPARE	eH, "0"
-				call z,sub_tH
+cursor_right:	ADD cX, 1'd
 				call del250ms
 				RETURN
+				
+cursor_left:	SUB cX, 1'd
+				call del250ms
+				RETURN
+				
+check_collision : 	COMPARE 	cX , 40
+					CALL 		Z, init
+					COMPARE		cY , 20
+					CALL		Z, init
+					COMPARE  	cX , 05
+					CALL		Z,init
+					COMPARE		cY , 05
+					CALL		Z,init
+					RETURN
 				
 cursor_save:	CALL start_esc			;save cursor position for recall later
 				LOAD uart, "s"
@@ -265,21 +253,42 @@ cursor_return:	CALL start_esc			;return to saved cursor position
 				CALL del250ms 
 				RETURN 
 				
-cursor_get_pos:	CALL start_esc			;reports current cursor line & column
-				LOAD uart, "#"
-				CALL UART_TX
-				LOAD uart, ";"
-				CALL UART_TX
-				LOAD uart, "#"
-				CALL UART_TX
-				;LOAD uart, "R"
-				CALL UART_TX
-				CALL UART_RX			;retrieve position line
-				LOAD eH, uart
-				CALL UART_RX
-				LOAD eV, uart		;retrieve position row
-				;CALL del250ms 
-				RETURN 
+top_side:				CALL 	cursor_num
+						LOAD 	uart,DC
+						CALL 	UART_TX
+						ADD 	cX,01
+						COMPARE cX,41
+						JUMP	nz, top_side
+						ADD 	cY,01
+						SUB 	cX,01
+						RETURN
+
+right_side:				CALL 	cursor_num
+						LOAD 	uart,DB
+						CALL 	UART_TX
+						ADD 	cY,01
+						COMPARE cY,20
+						JUMP	nz, right_side
+						RETURN	
+						
+bottom_side:			CALL 	cursor_num
+						LOAD 	uart,DF
+						CALL 	UART_TX
+						SUB 	cX,01
+						COMPARE cX,04
+						JUMP 	nz, bottom_side
+						SUB 	cY,01
+						ADD		cX,01
+						RETURN
+
+left_side:				CALL 	cursor_num
+						LOAD 	uart,DB
+						CALL 	UART_TX
+						SUB		cY,01
+						COMPARE cY,05
+						JUMP	nz, left_side
+						RETURN	
+
 				
 ;------------- 				DELAY						-------------;
 delms:              input     s0, clk_ms
@@ -292,7 +301,13 @@ del250ms:           load      s2, 05
                     add       s2, 01
                     jump      nz, del250mslp
                     return    
-					
+
+byte_to_decimal: 	LOAD tient, 00                     ;clear 'tens'
+     b_to_d_loop:   COMPARE eenh, 10'd                ;if 'units' is less than 10
+                    RETURN C                        ;  then conversion complete
+                    ADD tient, 1'd                     ;otherwise increment number of 'tens'
+                    SUB eenh, 10'd                    ; and subtract 10 from 'units'
+                    JUMP b_to_d_loop					
 					
 ;---	ASCII		---;
 ;--- lijncodes
@@ -311,57 +326,3 @@ CONSTANT char_POINT,2E			;.
 CONSTANT char_DPOINT,3A			;:
 CONSTANT char_POINTCOMMA,3B		;;
 CONSTANT char_EQUAL,3D			;=
-;--- Hoofdletters
-CONSTANT char_A,41
-CONSTANT char_B,42
-CONSTANT char_C,43
-CONSTANT char_D,44
-CONSTANT char_E,45
-CONSTANT char_F,46
-CONSTANT char_G,47
-CONSTANT char_H,48
-CONSTANT char_I,49
-CONSTANT char_J,4A
-CONSTANT char_K,4B
-CONSTANT char_L,4C
-CONSTANT char_M,4D
-CONSTANT char_N,4E
-CONSTANT char_O,4F
-CONSTANT char_P,50
-CONSTANT char_Q,51
-CONSTANT char_R,52
-CONSTANT char_S,53
-CONSTANT char_T,54
-CONSTANT char_U,55
-CONSTANT char_V,56
-CONSTANT char_W,57
-CONSTANT char_X,58
-CONSTANT char_Y,59
-CONSTANT char_Z,5A
-;--- Kleine letters
-CONSTANT char_a,61
-CONSTANT char_b,62
-CONSTANT char_c,63
-CONSTANT char_d,64
-CONSTANT char_e,65
-CONSTANT char_f,66
-CONSTANT char_g,67
-CONSTANT char_h,68
-CONSTANT char_i,69
-CONSTANT char_j,6A
-CONSTANT char_k,6B
-CONSTANT char_l,6C
-CONSTANT char_m,6D
-CONSTANT char_n,6E
-CONSTANT char_o,6F
-CONSTANT char_p,70
-CONSTANT char_q,71
-CONSTANT char_r,72
-CONSTANT char_s,73
-CONSTANT char_t,74
-CONSTANT char_u,75
-CONSTANT char_v,76
-CONSTANT char_w,77
-CONSTANT char_x,78
-CONSTANT char_y,79
-CONSTANT char_z,7A
