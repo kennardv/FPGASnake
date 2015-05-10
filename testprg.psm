@@ -168,9 +168,26 @@ cursor_up:		SUB cY, 1'd
 				CALL del250ms
 				RETURN
 				
+				;LOAD        current_loc, 02             ;load x value of previous head
+                ;FETCH       mem_data, (current_loc)
+                ;SUB         mem_data, 01                ;x + 1 -> move up
+                ;COMPARE     mem_data, 00
+                ;CALL        Z, snake_init               ;if x < 0 --> game over
+                ;STORE       mem_data, (current_loc)
+                ;RETURN
+				
+				
 cursor_down:	ADD cY, 1'd
 				CALL del250ms
 				RETURN
+				
+				;LOAD        current_loc, 02             ;load x value of previous head
+				;FETCH       mem_data, (current_loc)
+				;ADD         mem_data, 01                ;x + 1 -> move down
+				;COMPARE     mem_data, screen_size
+				;CALL        Z, snake_init            ;if x > screen size --> game over
+				;STORE       mem_data, (current_loc)
+                ;RETURN
 								
 				
 cursor_right:	ADD cX, 1'd
